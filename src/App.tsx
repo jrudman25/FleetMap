@@ -2,31 +2,36 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import FleetPanel from './components/FleetPanel'
 import { connectFleetSocket, type FleetSocketConnection } from './connectFleetSocket'
-import type { FleetUpdate, PlaybackRate } from './types'
+import type { AddVehicleInput, DestinationInput, FleetUpdate, PlaybackRate } from './types'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:3001'
 
 export default function App() {
   const [fleet, setFleet] = useState<FleetUpdate | null>(null)
   const [connection, setConnection] = useState<'connecting' | 'live' | 'offline'>('connecting')
+  const [fleetError, setFleetError] = useState<string | null>(null)
   const socket = useRef<FleetSocketConnection | null>(null)
 
   useEffect(() => {
     const connection = connectFleetSocket(WS_URL, {
       onConnectionChange: setConnection,
       onFleetUpdate: setFleet,
+      onFleetError: setFleetError,
     })
     socket.current = connection
     return () => connection.disconnect()
   }, [])
 
-  const restart = useCallback(() => {
-    socket.current?.send({ type: 'simulation:restart' })
+  const sendCommand = useCallback((message: unknown) => {
+    setFleetError(null)
+    if (!socket.current?.send(message)) setFleetError('Fleet connection is offline. Try again when it reconnects.')
   }, [])
 
-  const setPlaybackRate = useCallback((playbackRate: PlaybackRate) => {
-    socket.current?.send({ type: 'simulation:set-speed', playbackRate })
-  }, [])
+  const reset = useCallback(() => sendCommand({ type: 'simulation:reset' }), [sendCommand])
+  const setPlaybackRate = useCallback((playbackRate: PlaybackRate) => sendCommand({ type: 'simulation:set-speed', playbackRate }), [sendCommand])
+  const addVehicle = useCallback((input: AddVehicleInput) => sendCommand({ type: 'fleet:add', ...input }), [sendCommand])
+  const removeVehicle = useCallback((id: string) => sendCommand({ type: 'fleet:remove', id }), [sendCommand])
+  const setDestination = useCallback((input: DestinationInput) => sendCommand({ type: 'fleet:set-destination', ...input }), [sendCommand])
 
   return (
     <main className="app-shell">
@@ -41,7 +46,15 @@ export default function App() {
         <MapView update={fleet} />
         <div className="map-note">Real OSRM road routes · Simulated vehicle movement</div>
       </section>
-      <FleetPanel update={fleet} onRestart={restart} onPlaybackRateChange={setPlaybackRate} />
+      <FleetPanel
+        update={fleet}
+        error={fleetError}
+        onReset={reset}
+        onPlaybackRateChange={setPlaybackRate}
+        onAddVehicle={addVehicle}
+        onRemoveVehicle={removeVehicle}
+        onDestinationChange={setDestination}
+      />
     </main>
   )
 }

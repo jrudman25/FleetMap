@@ -5,6 +5,7 @@ export type ConnectionStatus = 'connecting' | 'live' | 'offline'
 type FleetSocketOptions = {
   onConnectionChange: (status: ConnectionStatus) => void
   onFleetUpdate: (update: FleetUpdate) => void
+  onFleetError?: (message: string) => void
 }
 
 export type FleetSocketConnection = {
@@ -36,8 +37,9 @@ export function connectFleetSocket(url: string, options: FleetSocketOptions): Fl
     }
     ws.onerror = () => ws.close()
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data) as FleetUpdate
+      const message = JSON.parse(event.data) as FleetUpdate | { type: 'fleet:error'; message: string }
       if (message.type === 'fleet:update') options.onFleetUpdate(message)
+      else if (message.type === 'fleet:error') options.onFleetError?.(message.message)
     }
   }
 

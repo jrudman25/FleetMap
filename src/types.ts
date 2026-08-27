@@ -2,6 +2,8 @@ import type { LineString } from 'geojson'
 
 export type Coordinates = [number, number]
 export type PlaybackRate = 0.5 | 1 | 2 | 4
+export type AddVehicleInput = { name: string; origin: Coordinates }
+export type DestinationInput = { label: string; coordinates: Coordinates }
 
 export type Vehicle = {
   id: string
