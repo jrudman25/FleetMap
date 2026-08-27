@@ -1,10 +1,10 @@
 import express from 'express'
 import { WebSocketServer } from 'ws'
+import { createFleetCommandProcessor } from './fleetCommandProcessor.js'
 import { FleetSimulation } from './fleetSimulation.js'
 import { startWebSocketHeartbeat, trackWebSocketHeartbeat } from './webSocketHeartbeat.js'
 
 const PORT = 3001
-const PLAYBACK_RATES = new Set([0.5, 1, 2, 4])
 const HEARTBEAT_INTERVAL_MS = 30_000
 
 async function fetchRoute(origin, destination) {
@@ -25,37 +25,12 @@ const server = app.listen(PORT, () => console.log(`FleetMap server on http://loc
 const wss = new WebSocketServer({ server })
 
 let routesReady = false
-let commandQueue = Promise.resolve()
-
-function sendError(socket, error) {
-  if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ type: 'fleet:error', message: error.message ?? 'Could not update the fleet.' }))
-}
-
-async function handleCommand(message) {
-  if (!message || typeof message !== 'object') return
-  if (message.type === 'simulation:reset' || message.type === 'simulation:restart') simulation.reset()
-  else if (message.type === 'simulation:set-speed' && PLAYBACK_RATES.has(message.playbackRate)) simulation.setPlaybackRate(message.playbackRate)
-  else if (message.type === 'fleet:add') await simulation.addVehicle(message)
-  else if (message.type === 'fleet:remove') simulation.removeVehicle(message.id)
-  else if (message.type === 'fleet:set-destination') await simulation.setDestination(message)
-  else return
-  broadcast()
-}
+const processCommand = createFleetCommandProcessor(simulation, broadcast)
 
 wss.on('connection', (socket) => {
   trackWebSocketHeartbeat(socket)
   if (routesReady) socket.send(JSON.stringify(simulation.snapshot()))
-  socket.on('message', (raw) => {
-    let message
-    try {
-      message = JSON.parse(raw.toString())
-    } catch { /* Ignore malformed client messages in this small demo. */
-      return
-    }
-    commandQueue = commandQueue
-      .then(() => handleCommand(message))
-      .catch((error) => sendError(socket, error))
-  })
+  socket.on('message', (raw) => { processCommand(socket, raw) })
 })
 
 function broadcast() {
