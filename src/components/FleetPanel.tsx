@@ -15,9 +15,9 @@ const formatEta = (seconds: number) => formatTime(Math.ceil(seconds))
 const formatDistance = (meters: number) => `${(meters / METERS_PER_MILE).toFixed(1)} mi`
 
 function DistanceChart({ vehicles }: { vehicles: Vehicle[] }) {
-  const max = Math.max(...vehicles.map((vehicle) => vehicle.remainingMeters), 1)
+  const max = Math.max(...vehicles.map((vehicle) => vehicle.distanceMeters), 1)
   // D3 owns this scale; React uses its numeric output to render the SVG.
-  const x = scaleLinear().domain([0, max]).range([0, 174]).nice()
+  const x = scaleLinear().domain([0, max]).range([0, 174])
   return (
     <svg className="distance-chart" viewBox={`0 0 306 ${vehicles.length * 30 + 2}`} role="img" aria-label="Remaining distance by vehicle">
       {vehicles.map((vehicle, index) => {
@@ -69,7 +69,10 @@ export default function FleetPanel({ update, onRestart, onPlaybackRateChange }: 
       {vehicles.map((vehicle) => <article className="vehicle-row" key={vehicle.id}>
         <span className="color-dot" style={{ background: vehicle.color }} />
         <div className="vehicle-name"><strong>{vehicle.id}</strong><span>{vehicle.name}</span></div>
-        <div className="eta"><strong>{vehicle.arrived ? 'Arrived' : formatEta(vehicle.remainingSeconds)}</strong><span>{formatDistance(vehicle.remainingMeters)} left</span></div>
+        <div className="eta">
+          <strong>{vehicle.arrived ? 'Arrived' : formatEta(vehicle.remainingSeconds)}</strong>
+          <span>{vehicle.arrived && vehicle.arrivedAtElapsedSeconds !== null ? `at ${formatTime(vehicle.arrivedAtElapsedSeconds)} elapsed` : `${formatDistance(vehicle.remainingMeters)} left`}</span>
+        </div>
       </article>)}
     </section>
 

@@ -14,6 +14,7 @@ export type Vehicle = {
   osrmDurationSeconds: number
   remainingSeconds: number
   arrived: boolean
+  arrivedAtElapsedSeconds: number | null
 }
 
 export type FleetUpdate = {

@@ -39,7 +39,7 @@ React: MapLibre sources/markers + ETA panel + D3 scales/SVG bars
 
 - `server/index.js` fetches each actual driving route from the public OSRM demo server. It keeps data in memory, uses Turf `length` and `along` to road-snap every current position, and broadcasts the fleet through `ws`.
 - `src/components/MapView.tsx` renders the returned route GeoJSON and current locations with MapLibre GL JS.
-- `src/components/FleetPanel.tsx` sorts the live WebSocket state by ETA, displays remaining distance in miles, and provides the shared simulation clock controls. D3 owns the distance chart scale while React renders its SVG, so there are no competing DOM owners.
+- `src/components/FleetPanel.tsx` sorts the live WebSocket state by ETA, records each vehicle's elapsed arrival time, displays remaining distance in miles on a fixed route-length scale, and provides the shared simulation clock controls. D3 owns the distance chart scale while React renders its SVG, so there are no competing DOM owners.
 
 ## Real vs. simulated
 

@@ -83,6 +83,7 @@ function snapshot() {
         osrmDurationSeconds: vehicle.durationSeconds,
         remainingSeconds,
         arrived: fraction >= 1,
+        arrivedAtElapsedSeconds: fraction >= 1 ? simulatedDuration : null,
       }
     }),
   }
