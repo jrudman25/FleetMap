@@ -15,6 +15,7 @@ const VEHICLE_SEEDS = [
 ]
 
 const PLAYBACK_RATES = new Set([0.5, 1, 2, 4])
+const HEARTBEAT_INTERVAL_MS = 30_000
 
 let fleet = []
 let elapsedSimulationSeconds = 0
@@ -95,6 +96,8 @@ const server = app.listen(PORT, () => console.log(`FleetMap server on http://loc
 const wss = new WebSocketServer({ server })
 
 wss.on('connection', (socket) => {
+  socket.isAlive = true
+  socket.on('pong', () => { socket.isAlive = true })
   if (fleet.length) socket.send(JSON.stringify(snapshot()))
   socket.on('message', (raw) => {
     try {
@@ -118,6 +121,18 @@ function broadcast() {
 }
 
 setInterval(broadcast, 1000)
+const heartbeat = setInterval(() => {
+  for (const client of wss.clients) {
+    if (!client.isAlive) {
+      client.terminate()
+      continue
+    }
+    client.isAlive = false
+    client.ping()
+  }
+}, HEARTBEAT_INTERVAL_MS)
+wss.on('close', () => clearInterval(heartbeat))
+
 initialiseFleet().catch((error) => {
   console.error('Could not initialise routes from OSRM:', error.message)
   process.exitCode = 1

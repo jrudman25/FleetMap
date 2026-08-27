@@ -4,6 +4,7 @@ import FleetPanel from './components/FleetPanel'
 import type { FleetUpdate, PlaybackRate } from './types'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:3001'
+const MAX_RECONNECT_DELAY_MS = 10_000
 
 export default function App() {
   const [fleet, setFleet] = useState<FleetUpdate | null>(null)
@@ -11,16 +12,37 @@ export default function App() {
   const socket = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    const ws = new WebSocket(WS_URL)
-    socket.current = ws
-    ws.onopen = () => setConnection('live')
-    ws.onclose = () => setConnection('offline')
-    ws.onerror = () => setConnection('offline')
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data) as FleetUpdate
-      if (message.type === 'fleet:update') setFleet(message)
+    let reconnectDelay = 1_000
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+    let disposed = false
+
+    const connect = () => {
+      setConnection('connecting')
+      const ws = new WebSocket(WS_URL)
+      socket.current = ws
+      ws.onopen = () => {
+        reconnectDelay = 1_000
+        setConnection('live')
+      }
+      ws.onclose = () => {
+        if (disposed) return
+        setConnection('offline')
+        reconnectTimer = setTimeout(connect, reconnectDelay)
+        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS)
+      }
+      ws.onerror = () => ws.close()
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data) as FleetUpdate
+        if (message.type === 'fleet:update') setFleet(message)
+      }
     }
-    return () => ws.close()
+
+    connect()
+    return () => {
+      disposed = true
+      clearTimeout(reconnectTimer)
+      socket.current?.close()
+    }
   }, [])
 
   const restart = useCallback(() => {
