@@ -60,6 +60,17 @@ describe('FleetSimulation', () => {
     movedPositions.forEach((position, index) => expect(position).not.toEqual(reroutePositions[index]))
   })
 
+  it('applies the same acceleration to every truck after a destination change', async () => {
+    const { simulation, advance } = createSimulation()
+    await simulation.initialise()
+    await simulation.setDestination({ label: 'Space Needle', coordinates: [-122.3493, 47.6205] })
+
+    advance(10_000)
+    const remainingFractions = simulation.snapshot().vehicles.map((vehicle) => vehicle.remainingMeters / vehicle.distanceMeters)
+
+    expect(remainingFractions.every((fraction) => fraction === remainingFractions[0])).toBe(true)
+  })
+
   it('routes added trucks to the current destination', async () => {
     const { simulation, fetchRoute } = createSimulation()
     await simulation.initialise()

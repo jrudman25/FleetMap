@@ -4,13 +4,14 @@ import { lineString } from '@turf/helpers'
 
 export const DEFAULT_DESTINATION = { coordinates: [-122.3321, 47.6062], label: 'Seattle City Hall' }
 export const DEFAULT_VEHICLES = [
-  { id: 'VAN-01', name: 'Magnolia', color: '#4f8cff', origin: [-122.4094, 47.6489], speedMultiplier: 2.25 },
-  { id: 'VAN-02', name: 'Capitol', color: '#f59e0b', origin: [-122.3019, 47.6294], speedMultiplier: 1.8 },
-  { id: 'VAN-03', name: 'Harbor', color: '#22c55e', origin: [-122.3721, 47.5707], speedMultiplier: 2.05 },
-  { id: 'VAN-04', name: 'Leschi', color: '#e85d75', origin: [-122.2855, 47.5964], speedMultiplier: 1.55 },
-  { id: 'VAN-05', name: 'Ballard', color: '#a78bfa', origin: [-122.3864, 47.6720], speedMultiplier: 1.95 },
+  { id: 'VAN-01', name: 'Magnolia', color: '#4f8cff', origin: [-122.4094, 47.6489] },
+  { id: 'VAN-02', name: 'Capitol', color: '#f59e0b', origin: [-122.3019, 47.6294] },
+  { id: 'VAN-03', name: 'Harbor', color: '#22c55e', origin: [-122.3721, 47.5707] },
+  { id: 'VAN-04', name: 'Leschi', color: '#e85d75', origin: [-122.2855, 47.5964] },
+  { id: 'VAN-05', name: 'Ballard', color: '#a78bfa', origin: [-122.3864, 47.6720] },
 ]
 
+const SIMULATION_ACCELERATION = 1.8
 const VEHICLE_COLORS = ['#ef8354', '#2a9d8f', '#e9c46a', '#8b5cf6', '#ec4899', '#06b6d4']
 const MAX_FLEET_SIZE = 25
 
@@ -93,7 +94,7 @@ export class FleetSimulation {
   }
 
   vehicleSnapshot(vehicle, elapsedSeconds) {
-    const simulatedDuration = Math.max(50, vehicle.durationSeconds / vehicle.speedMultiplier)
+    const simulatedDuration = Math.max(50, vehicle.durationSeconds / SIMULATION_ACCELERATION)
     const vehicleElapsedSeconds = Math.max(0, elapsedSeconds - vehicle.startedAtElapsedSeconds)
     const remainingSeconds = Math.max(0, simulatedDuration - vehicleElapsedSeconds)
     const fraction = Math.min(1, vehicleElapsedSeconds / simulatedDuration)
@@ -136,7 +137,6 @@ export class FleetSimulation {
       name: trimmedName,
       color: VEHICLE_COLORS[(number - DEFAULT_VEHICLES.length - 1) % VEHICLE_COLORS.length],
       origin: [...origin],
-      speedMultiplier: 1.8,
     }
     const route = await this.fetchRoute(vehicle.origin, this.destination.coordinates)
     this.fleet.push(routeVehicle(vehicle, route, elapsedSeconds))
