@@ -17,7 +17,7 @@ For development, run `npm run dev` to launch the same services with Node watch m
 
 ## Test
 
-Run `npm test` to execute the Vitest suite. It covers fleet additions, removals, destination rerouting, default reset behavior, client reconnection and backoff, connection cleanup, message forwarding, command sending, and server heartbeat handling for responsive and stale sockets.
+Run `npm test` to execute the Vitest suite. It covers fleet additions, removals, capacity and validation boundaries, destination rerouting, route failure atomicity, default reset behavior, serialized WebSocket commands and error responses, client reconnection and backoff, connection cleanup, message forwarding, command sending, and server heartbeat handling for responsive and stale sockets.
 
 ### WebSocket URL
 
@@ -41,7 +41,7 @@ Node server: in-memory fleet → 1s tick → Turf along(route, distance) → Web
 React: MapLibre sources/markers + ETA panel + D3 scales/SVG bars
 ```
 
-- `server/index.js` handles WebSocket commands and fetches actual driving routes from the public OSRM demo server. `server/fleetSimulation.js` keeps fleet state in memory, uses Turf `length` and `along` to road-snap every current position, and preserves the original setup for resets. Protocol-level heartbeats remove stale sockets, while the client reconnects with bounded exponential backoff.
+- `server/index.js` hosts the WebSocket server and fetches actual driving routes from the public OSRM demo server. `server/fleetCommandProcessor.js` validates and serializes incoming commands, broadcasts successful changes, and returns errors to the requesting client. `server/fleetSimulation.js` keeps fleet state in memory, uses Turf `length` and `along` to road-snap every current position, and preserves the original setup for resets. Protocol-level heartbeats remove stale sockets, while the client reconnects with bounded exponential backoff.
 - `src/components/MapView.tsx` renders the returned route GeoJSON and current locations with MapLibre GL JS.
 - `src/components/FleetPanel.tsx` sorts the live WebSocket state by ETA, records each vehicle's elapsed arrival time, displays remaining distance in miles on a fixed route-length scale, and provides the shared simulation clock controls. D3 owns the distance chart scale while React renders its SVG, so there are no competing DOM owners.
 
