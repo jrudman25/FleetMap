@@ -1,0 +1,36 @@
+{
+  "name": "fleetmap",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "node --watch server/index.js",
+    "dev:client": "vite",
+    "build": "tsc -b && vite build",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "@turf/along": "^7.2.0",
+    "@turf/helpers": "^7.2.0",
+    "@turf/length": "^7.2.0",
+    "d3": "^7.9.0",
+    "express": "^4.21.2",
+    "maplibre-gl": "^5.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.1",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@types/d3-scale": "^4.0.9",
+    "@types/ws": "^8.5.14",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "typescript": "~5.7.2",
+    "vite": "^6.1.0"
+  }
+}
