@@ -3,6 +3,7 @@ import { WebSocketServer } from 'ws'
 import along from '@turf/along'
 import length from '@turf/length'
 import { lineString } from '@turf/helpers'
+import { startWebSocketHeartbeat, trackWebSocketHeartbeat } from './webSocketHeartbeat.js'
 
 const PORT = 3001
 const DESTINATION = [-122.3321, 47.6062] // Seattle City Hall
@@ -96,8 +97,7 @@ const server = app.listen(PORT, () => console.log(`FleetMap server on http://loc
 const wss = new WebSocketServer({ server })
 
 wss.on('connection', (socket) => {
-  socket.isAlive = true
-  socket.on('pong', () => { socket.isAlive = true })
+  trackWebSocketHeartbeat(socket)
   if (fleet.length) socket.send(JSON.stringify(snapshot()))
   socket.on('message', (raw) => {
     try {
@@ -121,17 +121,7 @@ function broadcast() {
 }
 
 setInterval(broadcast, 1000)
-const heartbeat = setInterval(() => {
-  for (const client of wss.clients) {
-    if (!client.isAlive) {
-      client.terminate()
-      continue
-    }
-    client.isAlive = false
-    client.ping()
-  }
-}, HEARTBEAT_INTERVAL_MS)
-wss.on('close', () => clearInterval(heartbeat))
+startWebSocketHeartbeat(wss, HEARTBEAT_INTERVAL_MS)
 
 initialiseFleet().catch((error) => {
   console.error('Could not initialise routes from OSRM:', error.message)

@@ -1,60 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import FleetPanel from './components/FleetPanel'
+import { connectFleetSocket, type FleetSocketConnection } from './connectFleetSocket'
 import type { FleetUpdate, PlaybackRate } from './types'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:3001'
-const MAX_RECONNECT_DELAY_MS = 10_000
 
 export default function App() {
   const [fleet, setFleet] = useState<FleetUpdate | null>(null)
   const [connection, setConnection] = useState<'connecting' | 'live' | 'offline'>('connecting')
-  const socket = useRef<WebSocket | null>(null)
+  const socket = useRef<FleetSocketConnection | null>(null)
 
   useEffect(() => {
-    let reconnectDelay = 1_000
-    let reconnectTimer: ReturnType<typeof setTimeout> | undefined
-    let disposed = false
-
-    const connect = () => {
-      setConnection('connecting')
-      const ws = new WebSocket(WS_URL)
-      socket.current = ws
-      ws.onopen = () => {
-        reconnectDelay = 1_000
-        setConnection('live')
-      }
-      ws.onclose = () => {
-        if (disposed) return
-        setConnection('offline')
-        reconnectTimer = setTimeout(connect, reconnectDelay)
-        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS)
-      }
-      ws.onerror = () => ws.close()
-      ws.onmessage = (event) => {
-        const message = JSON.parse(event.data) as FleetUpdate
-        if (message.type === 'fleet:update') setFleet(message)
-      }
-    }
-
-    connect()
-    return () => {
-      disposed = true
-      clearTimeout(reconnectTimer)
-      socket.current?.close()
-    }
+    const connection = connectFleetSocket(WS_URL, {
+      onConnectionChange: setConnection,
+      onFleetUpdate: setFleet,
+    })
+    socket.current = connection
+    return () => connection.disconnect()
   }, [])
 
   const restart = useCallback(() => {
-    if (socket.current?.readyState === WebSocket.OPEN) {
-      socket.current.send(JSON.stringify({ type: 'simulation:restart' }))
-    }
+    socket.current?.send({ type: 'simulation:restart' })
   }, [])
 
   const setPlaybackRate = useCallback((playbackRate: PlaybackRate) => {
-    if (socket.current?.readyState === WebSocket.OPEN) {
-      socket.current.send(JSON.stringify({ type: 'simulation:set-speed', playbackRate }))
-    }
+    socket.current?.send({ type: 'simulation:set-speed', playbackRate })
   }, [])
 
   return (
