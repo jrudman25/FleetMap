@@ -86,11 +86,13 @@ describe('connectFleetSocket', () => {
     connection.disconnect()
   })
 
-  it('forwards updates, sends only while open, and stops reconnecting after disconnect', () => {
+  it('forwards updates and errors, sends only while open, and stops reconnecting after disconnect', () => {
     const onFleetUpdate = vi.fn()
+    const onFleetError = vi.fn()
     const connection = connectFleetSocket('ws://fleet.test', {
       onConnectionChange: vi.fn(),
       onFleetUpdate,
+      onFleetError,
     })
     const socket = FakeWebSocket.instances[0]
     const update = { type: 'fleet:update', vehicles: [] } as unknown as FleetUpdate
@@ -98,7 +100,9 @@ describe('connectFleetSocket', () => {
     expect(connection.send({ type: 'simulation:restart' })).toBe(false)
     socket.open()
     socket.receive(update)
+    socket.receive({ type: 'fleet:error', message: 'Route unavailable.' })
     expect(onFleetUpdate).toHaveBeenCalledWith(update)
+    expect(onFleetError).toHaveBeenCalledWith('Route unavailable.')
     expect(connection.send({ type: 'simulation:restart' })).toBe(true)
     expect(socket.send).toHaveBeenCalledWith('{"type":"simulation:restart"}')
 
