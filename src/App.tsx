@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import FleetPanel from './components/FleetPanel'
 import { connectFleetSocket, type FleetSocketConnection } from './connectFleetSocket'
+import { geocodeDestination } from './geocodeDestination'
 import type { AddVehicleInput, DestinationInput, FleetUpdate, PlaybackRate } from './types'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:3001'
@@ -28,7 +29,9 @@ export default function App() {
   }, [])
 
   const reset = useCallback(() => sendCommand({ type: 'simulation:reset' }), [sendCommand])
+  const setPaused = useCallback((paused: boolean) => sendCommand({ type: 'simulation:set-paused', paused }), [sendCommand])
   const setPlaybackRate = useCallback((playbackRate: PlaybackRate) => sendCommand({ type: 'simulation:set-speed', playbackRate }), [sendCommand])
+  const lookupDestination = useCallback((query: string) => geocodeDestination(WS_URL, query), [])
   const addVehicle = useCallback((input: AddVehicleInput) => sendCommand({ type: 'fleet:add', ...input }), [sendCommand])
   const removeVehicle = useCallback((id: string) => sendCommand({ type: 'fleet:remove', id }), [sendCommand])
   const setDestination = useCallback((input: DestinationInput) => sendCommand({ type: 'fleet:set-destination', ...input }), [sendCommand])
@@ -50,7 +53,9 @@ export default function App() {
         update={fleet}
         error={fleetError}
         onReset={reset}
+        onPausedChange={setPaused}
         onPlaybackRateChange={setPlaybackRate}
+        onDestinationLookup={lookupDestination}
         onAddVehicle={addVehicle}
         onRemoveVehicle={removeVehicle}
         onDestinationChange={setDestination}

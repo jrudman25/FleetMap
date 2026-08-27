@@ -32,14 +32,15 @@ describe('createFleetCommandProcessor', () => {
     await processCommand(socket, command({ type: 'fleet:remove', id: 'VAN-02' }))
     await processCommand(socket, command({ type: 'fleet:set-destination', ...destination }))
     await processCommand(socket, command({ type: 'simulation:set-speed', playbackRate: 4 }))
+    await processCommand(socket, command({ type: 'simulation:set-paused', paused: true }))
 
-    expect(simulation.snapshot()).toMatchObject({ destination, playbackRate: 4 })
+    expect(simulation.snapshot()).toMatchObject({ destination, playbackRate: 4, isPaused: true })
     expect(simulation.snapshot().vehicles.map((vehicle) => vehicle.id)).toEqual(['VAN-01', 'VAN-03', 'VAN-04', 'VAN-05', 'VAN-06'])
-    expect(broadcast).toHaveBeenCalledTimes(4)
+    expect(broadcast).toHaveBeenCalledTimes(5)
 
     await processCommand(socket, command({ type: 'simulation:reset' }))
-    expect(simulation.snapshot()).toMatchObject({ destination: DEFAULT_DESTINATION, playbackRate: 1 })
-    expect(broadcast).toHaveBeenCalledTimes(5)
+    expect(simulation.snapshot()).toMatchObject({ destination: DEFAULT_DESTINATION, playbackRate: 1, isPaused: false })
+    expect(broadcast).toHaveBeenCalledTimes(6)
   })
 
   it('ignores malformed, unknown, and unsupported speed commands', async () => {
@@ -50,6 +51,7 @@ describe('createFleetCommandProcessor', () => {
     await processCommand(socket, Buffer.from('{bad json'))
     await processCommand(socket, command({ type: 'fleet:unknown' }))
     await processCommand(socket, command({ type: 'simulation:set-speed', playbackRate: 3 }))
+    await processCommand(socket, command({ type: 'simulation:set-paused', paused: 'yes' }))
 
     expect(simulation.snapshot()).toEqual(before)
     expect(broadcast).not.toHaveBeenCalled()

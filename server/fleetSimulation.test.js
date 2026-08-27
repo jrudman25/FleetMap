@@ -115,19 +115,39 @@ describe('FleetSimulation', () => {
     expect(simulation.snapshot().vehicles.at(-1)).toMatchObject({ id: 'VAN-26', name: 'Replacement' })
   })
 
-  it('resets the fleet, destination, speed, clock, and truck numbering', async () => {
+  it('pauses and resumes the shared simulation clock without changing its speed', async () => {
+    const { simulation, advance } = createSimulation()
+    await simulation.initialise()
+    advance(10_000)
+
+    simulation.setPaused(true)
+    const paused = simulation.snapshot()
+    advance(20_000)
+
+    expect(paused).toMatchObject({ elapsedSeconds: 10, isPaused: true, playbackRate: 1 })
+    expect(simulation.snapshot()).toEqual(paused)
+
+    simulation.setPlaybackRate(4)
+    simulation.setPaused(false)
+    advance(2_000)
+
+    expect(simulation.snapshot()).toMatchObject({ elapsedSeconds: 18, isPaused: false, playbackRate: 4 })
+  })
+
+  it('resets the fleet, destination, speed, pause state, clock, and truck numbering', async () => {
     const { simulation, advance } = createSimulation()
     await simulation.initialise()
     await simulation.addVehicle({ name: 'Added', origin: [-122.35, 47.63] })
     simulation.removeVehicle('VAN-01')
     simulation.setPlaybackRate(4)
+    simulation.setPaused(true)
     advance(5_000)
 
     simulation.reset()
     const update = simulation.snapshot()
     await simulation.addVehicle({ name: 'Next', origin: [-122.35, 47.63] })
 
-    expect(update).toMatchObject({ destination: DEFAULT_DESTINATION, elapsedSeconds: 0, playbackRate: 1 })
+    expect(update).toMatchObject({ destination: DEFAULT_DESTINATION, elapsedSeconds: 0, playbackRate: 1, isPaused: false })
     expect(update.vehicles.map((vehicle) => vehicle.id)).toEqual(['VAN-01', 'VAN-02', 'VAN-03', 'VAN-04', 'VAN-05'])
     expect(simulation.snapshot().vehicles.at(-1)?.id).toBe('VAN-06')
   })

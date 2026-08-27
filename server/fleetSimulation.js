@@ -24,7 +24,7 @@ function routeVehicle(vehicle, route, startedAtElapsedSeconds = 0) {
     ...vehicle,
     ...route,
     line,
-    routeKilometers: length(line, { units: 'kilometers' }),
+    routeMiles: length(line, { units: 'miles' }),
     startedAtElapsedSeconds,
   }
 }
@@ -49,6 +49,7 @@ export class FleetSimulation {
     this.elapsedSimulationSeconds = 0
     this.simulationClockUpdatedAt = now()
     this.playbackRate = 1
+    this.isPaused = false
     this.nextVehicleNumber = DEFAULT_VEHICLES.length + 1
   }
 
@@ -62,7 +63,16 @@ export class FleetSimulation {
   }
 
   getElapsedSeconds(now = this.now()) {
+    if (this.isPaused) return this.elapsedSimulationSeconds
     return this.elapsedSimulationSeconds + ((now - this.simulationClockUpdatedAt) / 1000) * this.playbackRate
+  }
+
+  setPaused(nextPaused) {
+    if (nextPaused === this.isPaused) return
+    const now = this.now()
+    this.elapsedSimulationSeconds = this.getElapsedSeconds(now)
+    this.simulationClockUpdatedAt = now
+    this.isPaused = nextPaused
   }
 
   setPlaybackRate(nextRate) {
@@ -78,6 +88,7 @@ export class FleetSimulation {
     this.elapsedSimulationSeconds = 0
     this.simulationClockUpdatedAt = this.now()
     this.playbackRate = 1
+    this.isPaused = false
     this.nextVehicleNumber = DEFAULT_VEHICLES.length + 1
   }
 
@@ -86,7 +97,7 @@ export class FleetSimulation {
     const vehicleElapsedSeconds = Math.max(0, elapsedSeconds - vehicle.startedAtElapsedSeconds)
     const remainingSeconds = Math.max(0, simulatedDuration - vehicleElapsedSeconds)
     const fraction = Math.min(1, vehicleElapsedSeconds / simulatedDuration)
-    const point = along(vehicle.line, vehicle.routeKilometers * fraction, { units: 'kilometers' })
+    const point = along(vehicle.line, vehicle.routeMiles * fraction, { units: 'miles' })
     return {
       id: vehicle.id,
       name: vehicle.name,
@@ -109,6 +120,7 @@ export class FleetSimulation {
       destination: cloneDestination(this.destination),
       elapsedSeconds,
       playbackRate: this.playbackRate,
+      isPaused: this.isPaused,
       vehicles: this.fleet.map((vehicle) => this.vehicleSnapshot(vehicle, elapsedSeconds)),
     }
   }

@@ -24,5 +24,6 @@ export type FleetUpdate = {
   destination: { coordinates: Coordinates; label: string }
   elapsedSeconds: number
   playbackRate: PlaybackRate
+  isPaused: boolean
   vehicles: Vehicle[]
 }

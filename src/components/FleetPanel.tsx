@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { scaleLinear } from 'd3-scale'
+import type { GeocodedDestination } from '../geocodeDestination'
 import type { AddVehicleInput, DestinationInput, FleetUpdate, PlaybackRate, Vehicle } from '../types'
 
 const PLAYBACK_RATES: PlaybackRate[] = [0.5, 1, 2, 4]
@@ -38,17 +39,30 @@ type FleetPanelProps = {
   update: FleetUpdate | null
   error: string | null
   onReset: () => void
+  onPausedChange: (paused: boolean) => void
   onPlaybackRateChange: (rate: PlaybackRate) => void
+  onDestinationLookup: (query: string) => Promise<GeocodedDestination>
   onAddVehicle: (input: AddVehicleInput) => void
   onRemoveVehicle: (id: string) => void
   onDestinationChange: (input: DestinationInput) => void
 }
 
-export default function FleetPanel({ update, error, onReset, onPlaybackRateChange, onAddVehicle, onRemoveVehicle, onDestinationChange }: FleetPanelProps) {
+export default function FleetPanel({ update, error, onReset, onPausedChange, onPlaybackRateChange, onDestinationLookup, onAddVehicle, onRemoveVehicle, onDestinationChange }: FleetPanelProps) {
   const [editor, setEditor] = useState<'truck' | 'destination' | null>(null)
+  const [destinationDraft, setDestinationDraft] = useState({ label: '', longitude: '', latitude: '' })
+  const [lookup, setLookup] = useState({ loading: false, message: '', failed: false })
   const vehicles = [...(update?.vehicles ?? [])].sort((a, b) => a.remainingSeconds - b.remainingSeconds)
 
-  const openDestinationEditor = () => setEditor((current) => current === 'destination' ? null : 'destination')
+  const openDestinationEditor = () => {
+    if (editor === 'destination') return setEditor(null)
+    if (update) setDestinationDraft({
+      label: update.destination.label,
+      longitude: String(update.destination.coordinates[0]),
+      latitude: String(update.destination.coordinates[1]),
+    })
+    setLookup({ loading: false, message: '', failed: false })
+    setEditor('destination')
+  }
 
   const addVehicle = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -61,12 +75,26 @@ export default function FleetPanel({ update, error, onReset, onPlaybackRateChang
     setEditor(null)
   }
 
+  const findDestination = async () => {
+    setLookup({ loading: true, message: 'Looking up destination…', failed: false })
+    try {
+      const result = await onDestinationLookup(destinationDraft.label)
+      setDestinationDraft((current) => ({
+        ...current,
+        longitude: String(result.coordinates[0]),
+        latitude: String(result.coordinates[1]),
+      }))
+      setLookup({ loading: false, message: `Found ${result.displayName}`, failed: false })
+    } catch (error) {
+      setLookup({ loading: false, message: error instanceof Error ? error.message : 'Could not look up that destination.', failed: true })
+    }
+  }
+
   const setDestination = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const data = new FormData(event.currentTarget)
     onDestinationChange({
-      label: String(data.get('label')),
-      coordinates: [Number(data.get('longitude')), Number(data.get('latitude'))],
+      label: destinationDraft.label,
+      coordinates: [Number(destinationDraft.longitude), Number(destinationDraft.latitude)],
     })
     setEditor(null)
   }
@@ -85,10 +113,15 @@ export default function FleetPanel({ update, error, onReset, onPlaybackRateChang
 
     {editor === 'destination' && <form className="fleet-editor" onSubmit={setDestination}>
       <div className="editor-heading"><strong>Change destination</strong><button type="button" onClick={() => setEditor(null)} aria-label="Close destination editor">Close</button></div>
-      <label>Destination name<input name="label" maxLength={60} required defaultValue={update?.destination.label} /></label>
+      <label>Destination name<input name="label" maxLength={60} required value={destinationDraft.label} onChange={(event) => {
+        setDestinationDraft((current) => ({ ...current, label: event.target.value }))
+        setLookup({ loading: false, message: '', failed: false })
+      }} /></label>
+      <button type="button" className="lookup-button" disabled={lookup.loading || destinationDraft.label.trim().length < 2} onClick={findDestination}>{lookup.loading ? 'Finding…' : 'Find coordinates'}</button>
+      {lookup.message && <p className={`lookup-status${lookup.failed ? ' failed' : ''}`} role="status">{lookup.message}</p>}
       <div className="coordinate-fields">
-        <label>Longitude<input name="longitude" type="number" min="-180" max="180" step="any" required defaultValue={update?.destination.coordinates[0]} /></label>
-        <label>Latitude<input name="latitude" type="number" min="-90" max="90" step="any" required defaultValue={update?.destination.coordinates[1]} /></label>
+        <label>Longitude<input name="longitude" type="number" min="-180" max="180" step="any" required value={destinationDraft.longitude} onChange={(event) => setDestinationDraft((current) => ({ ...current, longitude: event.target.value }))} /></label>
+        <label>Latitude<input name="latitude" type="number" min="-90" max="90" step="any" required value={destinationDraft.latitude} onChange={(event) => setDestinationDraft((current) => ({ ...current, latitude: event.target.value }))} /></label>
       </div>
       <button type="submit">Reroute fleet</button>
     </form>}
@@ -98,6 +131,13 @@ export default function FleetPanel({ update, error, onReset, onPlaybackRateChang
         <span>TIME ELAPSED</span>
         <strong>{formatTime(update?.elapsedSeconds ?? 0)}</strong>
       </div>
+      <button
+        type="button"
+        className={`pause-button${update?.isPaused ? ' active' : ''}`}
+        aria-pressed={update?.isPaused ?? false}
+        disabled={!update}
+        onClick={() => onPausedChange(!update?.isPaused)}
+      >{update?.isPaused ? 'Resume' : 'Pause'}</button>
       <div className="speed-control">
         <span id="speed-label">SPEED</span>
         <div className="speed-options" role="group" aria-labelledby="speed-label">
@@ -147,6 +187,6 @@ export default function FleetPanel({ update, error, onReset, onPlaybackRateChang
       {vehicles.length ? <DistanceChart vehicles={vehicles} /> : <p className="waiting">Add a truck to see route distances.</p>}
     </section>
 
-    <footer>ETAs are OSRM baseline travel times, accelerated for this demo.</footer>
+    <footer>ETAs are OSRM baseline travel times, accelerated for this demo. Destination search data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.</footer>
   </aside>
 }

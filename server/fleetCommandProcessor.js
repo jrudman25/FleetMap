@@ -8,6 +8,7 @@ async function handleCommand(simulation, broadcast, message) {
   if (!message || typeof message !== 'object') return
   if (message.type === 'simulation:reset' || message.type === 'simulation:restart') simulation.reset()
   else if (message.type === 'simulation:set-speed' && PLAYBACK_RATES.has(message.playbackRate)) simulation.setPlaybackRate(message.playbackRate)
+  else if (message.type === 'simulation:set-paused' && typeof message.paused === 'boolean') simulation.setPaused(message.paused)
   else if (message.type === 'fleet:add') await simulation.addVehicle(message)
   else if (message.type === 'fleet:remove') simulation.removeVehicle(message.id)
   else if (message.type === 'fleet:set-destination') await simulation.setDestination(message)
