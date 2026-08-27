@@ -8,7 +8,9 @@
     "dev:server": "node --watch server/index.js",
     "dev:client": "vite",
     "build": "tsc -b && vite build",
-    "start": "node server/index.js"
+    "start": "concurrently -k \"npm:start:server\" \"npm:start:client\"",
+    "start:server": "node server/index.js",
+    "start:client": "vite"
   },
   "dependencies": {
     "@turf/along": "^7.2.0",
@@ -32,5 +34,8 @@
     "concurrently": "^9.1.2",
     "typescript": "~5.7.2",
     "vite": "^6.1.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

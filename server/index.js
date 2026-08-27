@@ -7,10 +7,10 @@ import { lineString } from '@turf/helpers'
 const PORT = 3001
 const DESTINATION = [-122.3321, 47.6062] // Seattle City Hall
 const VEHICLE_SEEDS = [
-  { id: 'VAN-01', name: 'Pioneer', color: '#4f8cff', origin: [-122.4094, 47.6489], speedMultiplier: 2.25 },
-  { id: 'VAN-02', name: 'Cedar', color: '#f59e0b', origin: [-122.3019, 47.6294], speedMultiplier: 1.8 },
+  { id: 'VAN-01', name: 'Magnolia', color: '#4f8cff', origin: [-122.4094, 47.6489], speedMultiplier: 2.25 },
+  { id: 'VAN-02', name: 'Capitol', color: '#f59e0b', origin: [-122.3019, 47.6294], speedMultiplier: 1.8 },
   { id: 'VAN-03', name: 'Harbor', color: '#22c55e', origin: [-122.3721, 47.5707], speedMultiplier: 2.05 },
-  { id: 'VAN-04', name: 'Rainier', color: '#e85d75', origin: [-122.2855, 47.5964], speedMultiplier: 1.55 },
+  { id: 'VAN-04', name: 'Leschi', color: '#e85d75', origin: [-122.2855, 47.5964], speedMultiplier: 1.55 },
   { id: 'VAN-05', name: 'Ballard', color: '#a78bfa', origin: [-122.3864, 47.6720], speedMultiplier: 1.95 },
 ]
 

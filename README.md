@@ -4,12 +4,28 @@ A deliberately focused real-time fleet-tracking demo for Seattle. Five hardcoded
 
 ## Run locally
 
+Requires Node.js 18 or newer.
+
 ```bash
 npm install
-npm run dev
+npm start
 ```
 
 Open `http://localhost:5173`. The combined command runs the Vite frontend and the WebSocket server on port 3001. The server needs outbound internet access once at startup to obtain the routes from OSRM.
+
+For development, run `npm run dev` to launch the same services with Node watch mode enabled for the server.
+
+### WebSocket URL
+
+The frontend reads `VITE_WS_URL` at build or startup time to determine which WebSocket server to connect to. It defaults to `ws://localhost:3001` for local use, while the variable allows hosted builds or alternate environments to use a different host, port, or secure `wss://` endpoint without changing source code.
+
+Set it in `.env.local` when an override is needed:
+
+```dotenv
+VITE_WS_URL=wss://your-websocket-host
+```
+
+Restart Vite after changing the value. Files named `.env.local` are intentionally excluded from Git.
 
 ## Architecture
 
