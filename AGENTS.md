@@ -2,7 +2,7 @@
 
 ## Project summary
 
-FleetMap is a focused real-time fleet simulation for Seattle. A Node.js server obtains road routes from the public OSRM service, advances an in-memory simulation, and broadcasts snapshots over WebSocket. A React client renders vehicles and routes with MapLibre and presents controls and ETA data.
+FleetMap is a focused real-time fleet simulation for Seattle. A Node.js server obtains road routes from the public OSRM service, resolves user-requested destinations through public Nominatim, advances an in-memory simulation, and broadcasts snapshots over WebSocket. A React client renders vehicles and routes with MapLibre and presents controls and ETA data.
 
 The application is a demo, not a persistent multi-tenant service. Fleet changes affect every connected client and disappear when the server restarts.
 
@@ -34,16 +34,17 @@ There is currently no lint script. For normal verification, run both `npm test` 
 ## Runtime requirements
 
 - The server requires outbound internet access during startup and fleet edits because it calls `https://router.project-osrm.org`.
+- User-triggered destination lookup calls public Nominatim. Keep its identifying User-Agent, attribution, bounded Seattle search, cache, and application-wide one-request-per-second limit intact.
 - Initial route fetching must finish before normal snapshots are broadcast.
 - `GET /health` reports whether the process is alive and how many routes are ready.
-- The client WebSocket URL is `VITE_WS_URL`, defaulting to `ws://localhost:3001`. Use `.env.local` for local overrides and never commit environment files.
-- The OpenStreetMap raster tiles and public OSRM endpoint are external services. Avoid tests that depend on either service being available.
+- The client WebSocket URL is `VITE_WS_URL`, defaulting to `ws://localhost:3001`. Destination lookup derives the corresponding HTTP(S) server URL from it. Use `.env.local` for local overrides and never commit environment files.
+- The OpenStreetMap raster tiles, public OSRM endpoint, and public Nominatim endpoint are external services. Avoid tests that depend on any of them being available.
 
 ## Architecture and ownership
 
 ### Server
 
-- `server/index.js`: process entry point, Express and WebSocket setup, OSRM adapter, one-second broadcasts, and startup lifecycle. Importing this file starts the real server, so do not import it from unit tests.
+- `server/index.js`: process entry point, Express and WebSocket setup, OSRM and Nominatim adapters, geocode rate limiting and caching, one-second broadcasts, and startup lifecycle. Importing this file starts the real server, so do not import it from unit tests.
 - `server/fleetCommandProcessor.js`: parses, validates, and globally serializes incoming commands. Successful commands broadcast once. Failures are sent only to the requesting open socket.
 - `server/fleetSimulation.js`: authoritative in-memory fleet state, input validation, clock calculations, route replacement, snapshots, reset behavior, and the 25-truck limit.
 - `server/webSocketHeartbeat.js`: ping/pong liveness tracking and stale-connection termination.
@@ -69,13 +70,14 @@ Client commands:
 - `{ "type": "simulation:reset" }`
 - `{ "type": "simulation:restart" }`, retained as a reset alias
 - `{ "type": "simulation:set-speed", "playbackRate": 0.5 | 1 | 2 | 4 }`
+- `{ "type": "simulation:set-paused", "paused": boolean }`
 - `{ "type": "fleet:add", "name": string, "origin": [longitude, latitude] }`
 - `{ "type": "fleet:remove", "id": string }`
 - `{ "type": "fleet:set-destination", "label": string, "coordinates": [longitude, latitude] }`
 
 Server messages:
 
-- `fleet:update`: full authoritative snapshot, including destination, elapsed time, playback rate, and all vehicles
+- `fleet:update`: full authoritative snapshot, including destination, elapsed time, playback rate, pause state, and all vehicles
 - `fleet:error`: requester-specific command failure with a user-facing `message`
 
 Coordinates always use GeoJSON order: `[longitude, latitude]`. Validate protocol input on the server even when the browser already constrains its form fields. Unknown commands, unsupported speeds, and malformed JSON are intentionally ignored.
@@ -83,12 +85,13 @@ Coordinates always use GeoJSON order: `[longitude, latitude]`. Validate protocol
 ## Simulation invariants
 
 - The default fleet contains five trucks and targets Seattle City Hall.
-- Reset restores the original five routes, destination, 1x playback rate, elapsed time zero, and truck numbering beginning again at `VAN-06`.
+- Reset restores the original five routes, destination, 1x playback rate, running state, elapsed time zero, and truck numbering beginning again at `VAN-06`.
+- Pausing freezes shared elapsed time and all truck positions without changing the selected playback rate.
 - Adding or removing a truck must not rewind existing trucks.
 - A newly added truck starts at the current simulation time and routes to the current destination.
 - Changing destination reroutes every truck from its current interpolated position without teleporting it.
 - Playback-rate changes preserve elapsed simulation time.
-- Route duration is accelerated per vehicle but has a minimum simulated duration of 50 seconds.
+- Route duration uses the same acceleration factor for every vehicle and has a minimum simulated duration of 50 seconds.
 - Fleet snapshots are the server authority; do not make the client independently simulate movement.
 
 ## Testing conventions
@@ -99,6 +102,7 @@ Tests are co-located with their modules and use Vitest:
 - `server/fleetCommandProcessor.test.js`: protocol dispatch, serialization, malformed input, broadcasts, and requester errors
 - `server/webSocketHeartbeat.test.js`: responsive and stale socket handling
 - `src/connectFleetSocket.test.ts`: reconnect behavior, cleanup, sending, and message forwarding
+- `src/geocodeDestination.test.ts`: fleet-server URL conversion, lookup results, and user-facing lookup errors
 
 Use injected clocks and route functions for deterministic simulation tests. Route fixtures should return GeoJSON `LineString` geometry plus `durationSeconds` and `distanceMeters`. Use fake sockets for protocol boundaries instead of opening ports. Test observable state and messages rather than private implementation details.
 

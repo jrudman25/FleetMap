@@ -50,16 +50,22 @@ type FleetPanelProps = {
 export default function FleetPanel({ update, error, onReset, onPausedChange, onPlaybackRateChange, onDestinationLookup, onAddVehicle, onRemoveVehicle, onDestinationChange }: FleetPanelProps) {
   const [editor, setEditor] = useState<'truck' | 'destination' | null>(null)
   const [destinationDraft, setDestinationDraft] = useState({ label: '', longitude: '', latitude: '' })
+  const [resolvedDestinationLabel, setResolvedDestinationLabel] = useState('')
+  const [coordinatesEdited, setCoordinatesEdited] = useState(false)
   const [lookup, setLookup] = useState({ loading: false, message: '', failed: false })
   const vehicles = [...(update?.vehicles ?? [])].sort((a, b) => a.remainingSeconds - b.remainingSeconds)
 
   const openDestinationEditor = () => {
     if (editor === 'destination') return setEditor(null)
-    if (update) setDestinationDraft({
-      label: update.destination.label,
-      longitude: String(update.destination.coordinates[0]),
-      latitude: String(update.destination.coordinates[1]),
-    })
+    if (update) {
+      setDestinationDraft({
+        label: update.destination.label,
+        longitude: String(update.destination.coordinates[0]),
+        latitude: String(update.destination.coordinates[1]),
+      })
+      setResolvedDestinationLabel(update.destination.label)
+    }
+    setCoordinatesEdited(false)
     setLookup({ loading: false, message: '', failed: false })
     setEditor('destination')
   }
@@ -84,18 +90,25 @@ export default function FleetPanel({ update, error, onReset, onPausedChange, onP
         longitude: String(result.coordinates[0]),
         latitude: String(result.coordinates[1]),
       }))
+      setResolvedDestinationLabel(destinationDraft.label.trim())
+      setCoordinatesEdited(false)
       setLookup({ loading: false, message: `Found ${result.displayName}`, failed: false })
+      return result
     } catch (error) {
       setLookup({ loading: false, message: error instanceof Error ? error.message : 'Could not look up that destination.', failed: true })
+      return null
     }
   }
 
-  const setDestination = (event: FormEvent<HTMLFormElement>) => {
+  const setDestination = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    onDestinationChange({
-      label: destinationDraft.label,
-      coordinates: [Number(destinationDraft.longitude), Number(destinationDraft.latitude)],
-    })
+    let coordinates: DestinationInput['coordinates'] = [Number(destinationDraft.longitude), Number(destinationDraft.latitude)]
+    if (!coordinatesEdited && destinationDraft.label.trim() !== resolvedDestinationLabel) {
+      const result = await findDestination()
+      if (!result) return
+      coordinates = result.coordinates
+    }
+    onDestinationChange({ label: destinationDraft.label, coordinates })
     setEditor(null)
   }
 
@@ -115,15 +128,22 @@ export default function FleetPanel({ update, error, onReset, onPausedChange, onP
       <div className="editor-heading"><strong>Change destination</strong><button type="button" onClick={() => setEditor(null)} aria-label="Close destination editor">Close</button></div>
       <label>Destination name<input name="label" maxLength={60} required value={destinationDraft.label} onChange={(event) => {
         setDestinationDraft((current) => ({ ...current, label: event.target.value }))
+        setCoordinatesEdited(false)
         setLookup({ loading: false, message: '', failed: false })
       }} /></label>
       <button type="button" className="lookup-button" disabled={lookup.loading || destinationDraft.label.trim().length < 2} onClick={findDestination}>{lookup.loading ? 'Finding…' : 'Find coordinates'}</button>
       {lookup.message && <p className={`lookup-status${lookup.failed ? ' failed' : ''}`} role="status">{lookup.message}</p>}
       <div className="coordinate-fields">
-        <label>Longitude<input name="longitude" type="number" min="-180" max="180" step="any" required value={destinationDraft.longitude} onChange={(event) => setDestinationDraft((current) => ({ ...current, longitude: event.target.value }))} /></label>
-        <label>Latitude<input name="latitude" type="number" min="-90" max="90" step="any" required value={destinationDraft.latitude} onChange={(event) => setDestinationDraft((current) => ({ ...current, latitude: event.target.value }))} /></label>
+        <label>Longitude<input name="longitude" type="number" min="-180" max="180" step="any" required value={destinationDraft.longitude} onChange={(event) => {
+          setDestinationDraft((current) => ({ ...current, longitude: event.target.value }))
+          setCoordinatesEdited(true)
+        }} /></label>
+        <label>Latitude<input name="latitude" type="number" min="-90" max="90" step="any" required value={destinationDraft.latitude} onChange={(event) => {
+          setDestinationDraft((current) => ({ ...current, latitude: event.target.value }))
+          setCoordinatesEdited(true)
+        }} /></label>
       </div>
-      <button type="submit">Reroute fleet</button>
+      <button type="submit" disabled={lookup.loading}>{lookup.loading ? 'Finding destination…' : 'Reroute fleet'}</button>
     </form>}
 
     <section className="simulation-controls" aria-label="Simulation controls">
