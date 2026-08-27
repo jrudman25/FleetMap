@@ -1,6 +1,7 @@
 import type { LineString } from 'geojson'
 
 export type Coordinates = [number, number]
+export type PlaybackRate = 0.5 | 1 | 2 | 4
 
 export type Vehicle = {
   id: string
@@ -18,5 +19,7 @@ export type Vehicle = {
 export type FleetUpdate = {
   type: 'fleet:update'
   destination: { coordinates: Coordinates; label: string }
+  elapsedSeconds: number
+  playbackRate: PlaybackRate
   vehicles: Vehicle[]
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import FleetPanel from './components/FleetPanel'
-import type { FleetUpdate } from './types'
+import type { FleetUpdate, PlaybackRate } from './types'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:3001'
 
@@ -29,6 +29,12 @@ export default function App() {
     }
   }, [])
 
+  const setPlaybackRate = useCallback((playbackRate: PlaybackRate) => {
+    if (socket.current?.readyState === WebSocket.OPEN) {
+      socket.current.send(JSON.stringify({ type: 'simulation:set-speed', playbackRate }))
+    }
+  }, [])
+
   return (
     <main className="app-shell">
       <section className="map-section" aria-label="Live vehicle map">
@@ -42,7 +48,7 @@ export default function App() {
         <MapView update={fleet} />
         <div className="map-note">Real OSRM road routes · Simulated vehicle movement</div>
       </section>
-      <FleetPanel update={fleet} onRestart={restart} />
+      <FleetPanel update={fleet} onRestart={restart} onPlaybackRateChange={setPlaybackRate} />
     </main>
   )
 }

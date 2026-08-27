@@ -39,11 +39,11 @@ React: MapLibre sources/markers + ETA panel + D3 scales/SVG bars
 
 - `server/index.js` fetches each actual driving route from the public OSRM demo server. It keeps data in memory, uses Turf `length` and `along` to road-snap every current position, and broadcasts the fleet through `ws`.
 - `src/components/MapView.tsx` renders the returned route GeoJSON and current locations with MapLibre GL JS.
-- `src/components/FleetPanel.tsx` sorts the live WebSocket state by ETA. D3 owns the distance chart scale while React renders its SVG, so there are no competing DOM owners.
+- `src/components/FleetPanel.tsx` sorts the live WebSocket state by ETA, displays remaining distance in miles, and provides the shared simulation clock controls. D3 owns the distance chart scale while React renders its SVG, so there are no competing DOM owners.
 
 ## Real vs. simulated
 
-The road geometry and baseline duration estimates are **real OSRM results**. There is no GPS feed: the vehicles progress on an intentionally accelerated simulated clock, which makes the demo readable in a short session. Click **Restart** to reset that clock for everyone currently viewing the server.
+The road geometry and baseline duration estimates are **real OSRM results**. There is no GPS feed: the vehicles progress on an intentionally accelerated simulated clock, which makes the demo readable in a short session. Use the **0.5x**, **1x**, **2x**, and **4x** controls to change the shared clock rate, or click **Restart** to reset its elapsed time. These controls affect everyone currently viewing the server.
 
 ## Scope
 

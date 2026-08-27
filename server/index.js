@@ -14,8 +14,12 @@ const VEHICLE_SEEDS = [
   { id: 'VAN-05', name: 'Ballard', color: '#a78bfa', origin: [-122.3864, 47.6720], speedMultiplier: 1.95 },
 ]
 
+const PLAYBACK_RATES = new Set([0.5, 1, 2, 4])
+
 let fleet = []
-let simulationStartedAt = Date.now()
+let elapsedSimulationSeconds = 0
+let simulationClockUpdatedAt = Date.now()
+let playbackRate = 1
 
 async function fetchRoute(origin) {
   const coordinates = `${origin.join(',')};${DESTINATION.join(',')}`
@@ -35,15 +39,33 @@ async function initialiseFleet() {
     line: lineString(vehicle.geometry.coordinates),
     routeKilometers: length(lineString(vehicle.geometry.coordinates), { units: 'kilometers' }),
   }))
-  simulationStartedAt = Date.now()
+  restartSimulation()
   console.log(`Fleet ready: ${fleet.length} road routes loaded.`)
 }
 
+function getElapsedSeconds(now = Date.now()) {
+  return elapsedSimulationSeconds + ((now - simulationClockUpdatedAt) / 1000) * playbackRate
+}
+
+function restartSimulation() {
+  elapsedSimulationSeconds = 0
+  simulationClockUpdatedAt = Date.now()
+}
+
+function setPlaybackRate(nextRate) {
+  const now = Date.now()
+  elapsedSimulationSeconds = getElapsedSeconds(now)
+  simulationClockUpdatedAt = now
+  playbackRate = nextRate
+}
+
 function snapshot() {
-  const elapsedSeconds = (Date.now() - simulationStartedAt) / 1000
+  const elapsedSeconds = getElapsedSeconds()
   return {
     type: 'fleet:update',
     destination: { coordinates: DESTINATION, label: 'Seattle City Hall' },
+    elapsedSeconds,
+    playbackRate,
     vehicles: fleet.map((vehicle) => {
       // Time is deliberately accelerated for a useful demo; the OSRM duration remains the baseline estimate.
       const simulatedDuration = Math.max(50, vehicle.durationSeconds / vehicle.speedMultiplier)
@@ -77,7 +99,11 @@ wss.on('connection', (socket) => {
     try {
       const message = JSON.parse(raw.toString())
       if (message.type === 'simulation:restart') {
-        simulationStartedAt = Date.now()
+        restartSimulation()
+        broadcast()
+      }
+      if (message.type === 'simulation:set-speed' && PLAYBACK_RATES.has(message.playbackRate)) {
+        setPlaybackRate(message.playbackRate)
         broadcast()
       }
     } catch { /* Ignore malformed client messages in this small demo. */ }
