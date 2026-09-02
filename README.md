@@ -1,6 +1,8 @@
 # FleetMap
 
-A deliberately focused real-time fleet-tracking demo for Seattle. Trucks follow real road routes toward a shared destination; their progress and ETAs update once per second. The fleet starts with five trucks bound for Seattle City Hall and can be edited, paused, and resumed from any connected client.
+A real-time fleet-tracking demo for Seattle. Trucks follow real road routes toward a shared destination; their progress and ETAs update once per second. The fleet starts with five trucks bound for Seattle City Hall and can be edited, paused, and resumed from any connected client.
+
+<img width="700" alt="image" src="https://github.com/user-attachments/assets/53830a5b-a7de-47fc-8559-ebde81d749eb" />
 
 ## Run locally
 
