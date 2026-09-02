@@ -1,8 +1,8 @@
 # FleetMap
 
-A real-time fleet-tracking demo for Seattle. Trucks follow real road routes toward a shared destination; their progress and ETAs update once per second. The fleet starts with five trucks bound for Seattle City Hall and can be edited, paused, and resumed from any connected client.
+A real-time fleet-tracking demo for Seattle. Trucks follow real road routes toward a shared destination; their progress and ETAs update once per second. The fleet starts with five trucks bound for Seattle City Hall and can be edited, paused, and resumed from any connected client. Display settings provide mile or kilometer distances and light or dark appearance modes.
 
-<img width="700" alt="image" src="https://github.com/user-attachments/assets/53830a5b-a7de-47fc-8559-ebde81d749eb" />
+<img width="700" alt="FleetMap dashboard" src="https://github.com/user-attachments/assets/53830a5b-a7de-47fc-8559-ebde81d749eb" />
 
 ## Run locally
 
@@ -19,7 +19,7 @@ For development, run `npm run dev` to launch the same services with Node watch m
 
 ## Test
 
-Run `npm test` to execute the Vitest suite. It covers fleet additions, removals, capacity and validation boundaries, destination rerouting and lookup handling, pause/resume clock behavior, route failure atomicity, default reset behavior, serialized WebSocket commands and error responses, client reconnection and backoff, connection cleanup, message forwarding, command sending, and server heartbeat handling for responsive and stale sockets.
+Run `npm test` to execute the Vitest suite. It covers fleet additions, removals, capacity and validation boundaries, destination rerouting and lookup handling, pause/resume clock behavior, route failure atomicity, default reset behavior, serialized WebSocket commands and error responses, client reconnection and backoff, connection cleanup, message forwarding, command sending, display preference restoration, distance conversion, and server heartbeat handling for responsive and stale sockets.
 
 ### WebSocket URL
 
@@ -45,11 +45,13 @@ React: MapLibre sources/markers + ETA panel + D3 scales/SVG bars
 
 - `server/index.js` hosts the WebSocket server, fetches actual driving routes from the public OSRM demo server, and provides a cached, rate-limited Seattle destination lookup through public Nominatim. `server/fleetCommandProcessor.js` validates and serializes incoming commands, broadcasts successful changes, and returns errors to the requesting client. `server/fleetSimulation.js` keeps fleet state in memory, uses Turf `length` and `along` to road-snap every current position, and preserves the original setup for resets. Protocol-level heartbeats remove stale sockets, while the client reconnects with bounded exponential backoff.
 - `src/components/MapView.tsx` renders the returned route GeoJSON and current locations with MapLibre GL JS.
-- `src/components/FleetPanel.tsx` sorts the live WebSocket state by ETA, records each vehicle's elapsed arrival time, displays remaining distance in miles on a fixed route-length scale, and provides the shared simulation clock controls. D3 owns the distance chart scale while React renders its SVG, so there are no competing DOM owners.
+- `src/components/FleetPanel.tsx` sorts the live WebSocket state by ETA, records each vehicle's elapsed arrival time, displays remaining distance in the selected unit on a fixed route-length scale, and provides the shared simulation clock controls. D3 owns the distance chart scale while React renders its SVG, so there are no competing DOM owners.
 
 ## Real vs. simulated
 
 The road geometry and baseline duration estimates are **real OSRM results**. There is no GPS feed: the vehicles progress on an intentionally accelerated simulated clock, which makes the demo readable in a short session. Use **Pause** and **Resume** to stop or continue the shared clock, and use the **0.5x**, **1x**, **2x**, and **4x** controls to change its rate. Trucks can be added from longitude and latitude coordinates, removed individually, or rerouted together by editing the shared destination. Enter a Seattle place name and press **Enter** to look it up and reroute immediately, click **Find coordinates** to preview the result, or edit either coordinate manually. Click **Reset** to restore the original five trucks, Seattle City Hall, 1x speed, a running clock, and zero elapsed time. These controls affect everyone currently viewing the server and are not persisted across server restarts.
+
+Open the cog in the fleet side panel to display distances in miles or kilometers and switch between light and dark appearance modes. The first visit follows the device color preference; selections are then saved locally in the browser. Display settings affect only the current browser and do not change shared fleet state.
 
 Destination lookup uses the public Nominatim service only after the destination form is explicitly submitted or **Find coordinates** is clicked. FleetMap caches results and serializes uncached lookups to respect the service's application-wide maximum of one request per second. This public endpoint is suitable for this moderate-use demo, not high-volume production geocoding; see the [Nominatim Usage Policy](https://operations.osmfoundation.org/policies/nominatim/). Search data is © OpenStreetMap contributors.
 

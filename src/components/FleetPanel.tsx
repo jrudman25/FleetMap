@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { scaleLinear } from 'd3-scale'
 import type { GeocodedDestination } from '../geocodeDestination'
+import type { DistanceUnit } from '../preferences'
 import type { AddVehicleInput, DestinationInput, FleetUpdate, PlaybackRate, Vehicle } from '../types'
 
 const PLAYBACK_RATES: PlaybackRate[] = [0.5, 1, 2, 4]
 const METERS_PER_MILE = 1609.344
+const METERS_PER_KILOMETER = 1000
 
 const formatTime = (seconds: number) => {
   const safe = Math.max(0, Math.floor(seconds))
@@ -14,9 +16,11 @@ const formatTime = (seconds: number) => {
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}` : clock
 }
 const formatEta = (seconds: number) => formatTime(Math.ceil(seconds))
-const formatDistance = (meters: number) => `${(meters / METERS_PER_MILE).toFixed(1)} mi`
+export const formatDistance = (meters: number, unit: DistanceUnit) => unit === 'kilometers'
+  ? `${(meters / METERS_PER_KILOMETER).toFixed(1)} km`
+  : `${(meters / METERS_PER_MILE).toFixed(1)} mi`
 
-function DistanceChart({ vehicles }: { vehicles: Vehicle[] }) {
+function DistanceChart({ vehicles, distanceUnit }: { vehicles: Vehicle[], distanceUnit: DistanceUnit }) {
   const max = Math.max(...vehicles.map((vehicle) => vehicle.distanceMeters), 1)
   // D3 owns this scale; React uses its numeric output to render the SVG.
   const x = scaleLinear().domain([0, max]).range([0, 174])
@@ -28,7 +32,7 @@ function DistanceChart({ vehicles }: { vehicles: Vehicle[] }) {
           <text x="0" y={y + 13} className="chart-label">{vehicle.id.replace('VAN-', '#')}</text>
           <rect x="38" y={y} width="174" height="16" rx="8" className="chart-track" />
           <rect x="38" y={y} width={x(vehicle.remainingMeters)} height="16" rx="8" fill={vehicle.color} />
-          <text x="306" y={y + 13} textAnchor="end" className="chart-value">{formatDistance(vehicle.remainingMeters)}</text>
+          <text x="306" y={y + 13} textAnchor="end" className="chart-value">{formatDistance(vehicle.remainingMeters, distanceUnit)}</text>
         </g>
       })}
     </svg>
@@ -38,6 +42,8 @@ function DistanceChart({ vehicles }: { vehicles: Vehicle[] }) {
 type FleetPanelProps = {
   update: FleetUpdate | null
   error: string | null
+  distanceUnit: DistanceUnit
+  settingsMenu: ReactNode
   onReset: () => void
   onPausedChange: (paused: boolean) => void
   onPlaybackRateChange: (rate: PlaybackRate) => void
@@ -47,7 +53,7 @@ type FleetPanelProps = {
   onDestinationChange: (input: DestinationInput) => void
 }
 
-export default function FleetPanel({ update, error, onReset, onPausedChange, onPlaybackRateChange, onDestinationLookup, onAddVehicle, onRemoveVehicle, onDestinationChange }: FleetPanelProps) {
+export default function FleetPanel({ update, error, distanceUnit, settingsMenu, onReset, onPausedChange, onPlaybackRateChange, onDestinationLookup, onAddVehicle, onRemoveVehicle, onDestinationChange }: FleetPanelProps) {
   const [editor, setEditor] = useState<'truck' | 'destination' | null>(null)
   const [destinationDraft, setDestinationDraft] = useState({ label: '', longitude: '', latitude: '' })
   const [resolvedDestinationLabel, setResolvedDestinationLabel] = useState('')
@@ -118,9 +124,12 @@ export default function FleetPanel({ update, error, onReset, onPausedChange, onP
         <p className="eyebrow">ARRIVING AT</p>
         <h2>{update?.destination.label ?? 'Connecting to fleet…'}</h2>
       </div>
-      <div className="topline-actions">
-        <button type="button" className="secondary-button" onClick={openDestinationEditor} disabled={!update}>Edit</button>
-        <button type="button" onClick={onReset} disabled={!update}>Reset</button>
+      <div className="topline-controls">
+        {settingsMenu}
+        <div className="topline-actions">
+          <button type="button" className="secondary-button" onClick={openDestinationEditor} disabled={!update}>Edit</button>
+          <button type="button" onClick={onReset} disabled={!update}>Reset</button>
+        </div>
       </div>
     </div>
 
@@ -183,7 +192,7 @@ export default function FleetPanel({ update, error, onReset, onPausedChange, onP
           <div className="vehicle-name"><strong>{vehicle.id}</strong><span>{vehicle.name}</span></div>
           <div className="eta">
             <strong>{vehicle.arrived ? 'Arrived' : formatEta(vehicle.remainingSeconds)}</strong>
-            <span>{vehicle.arrived && vehicle.arrivedAtElapsedSeconds !== null ? `at ${formatTime(vehicle.arrivedAtElapsedSeconds)} elapsed` : `${formatDistance(vehicle.remainingMeters)} left`}</span>
+            <span>{vehicle.arrived && vehicle.arrivedAtElapsedSeconds !== null ? `at ${formatTime(vehicle.arrivedAtElapsedSeconds)} elapsed` : `${formatDistance(vehicle.remainingMeters, distanceUnit)} left`}</span>
           </div>
           <button type="button" className="remove-truck" onClick={() => onRemoveVehicle(vehicle.id)} aria-label={`Remove ${vehicle.id}`}>Remove</button>
         </article>)}
@@ -204,7 +213,7 @@ export default function FleetPanel({ update, error, onReset, onPausedChange, onP
 
     <section className="chart-section">
       <p className="section-title">REMAINING DISTANCE <span>live</span></p>
-      {vehicles.length ? <DistanceChart vehicles={vehicles} /> : <p className="waiting">Add a truck to see route distances.</p>}
+      {vehicles.length ? <DistanceChart vehicles={vehicles} distanceUnit={distanceUnit} /> : <p className="waiting">Add a truck to see route distances.</p>}
     </section>
 
     <footer>ETAs are OSRM baseline travel times, accelerated for this demo. Destination search data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.</footer>

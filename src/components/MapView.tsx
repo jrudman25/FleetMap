@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import maplibregl, { type Map as MapLibreMap, type Marker } from 'maplibre-gl'
+import type { Theme } from '../preferences'
 import type { FleetUpdate } from '../types'
 
 const MAP_STYLE: maplibregl.StyleSpecification = {
@@ -10,7 +11,14 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 }
 
-export default function MapView({ update }: { update: FleetUpdate | null }) {
+const applyMapTheme = (map: MapLibreMap, theme: Theme) => {
+  if (!map.getLayer('osm')) return
+  map.setPaintProperty('osm', 'raster-saturation', theme === 'dark' ? -0.78 : 0)
+  map.setPaintProperty('osm', 'raster-brightness-max', theme === 'dark' ? 0.42 : 1)
+  map.setPaintProperty('osm', 'raster-contrast', theme === 'dark' ? 0.18 : 0)
+}
+
+export default function MapView({ update, theme }: { update: FleetUpdate | null, theme: Theme }) {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<MapLibreMap | null>(null)
   const markers = useRef(new globalThis.Map<string, Marker>())
@@ -27,9 +35,16 @@ export default function MapView({ update }: { update: FleetUpdate | null }) {
     })
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-left')
     instance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right')
-    instance.on('load', () => { map.current = instance })
+    instance.on('load', () => {
+      map.current = instance
+      applyMapTheme(instance, document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+    })
     return () => { map.current = null; instance.remove() }
   }, [])
+
+  useEffect(() => {
+    if (map.current) applyMapTheme(map.current, theme)
+  }, [theme])
 
   useEffect(() => {
     const instance = map.current
